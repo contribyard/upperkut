@@ -16,11 +16,11 @@ module Upperkut
     # Public:
     #  Normalize hash and hash arrays into a hash of Items.
     #  An Item object contains metadata, for example the timestamp from the moment it was enqueued,
-    #   that we need to carry through multiple execution tries.
+    #  that we need to carry through multiple execution tries.
     #
     #  When the execution fails, we need to schedule the whole batch for retry, and scheduling
-    #   an Item will make Upperkut understand that we're not dealing with a new batch,
-    #   so metrics like latency will increase.
+    #  an Item will make Upperkut understand that we're not dealing with a new batch,
+    #  so metrics like latency will increase.
     def normalize_items(items)
       items = [items] unless items.is_a?(Array)
 
@@ -28,28 +28,6 @@ module Upperkut
         next item if item.is_a?(Item)
 
         Item.new(id: SecureRandom.uuid, body: item)
-      end
-    end
-
-    def encode_json_items(items)
-      items = [items] unless items.is_a?(Array)
-
-      items.map do |item|
-        JSON.generate(
-          'id' => item.id,
-          'body' => item.body,
-          'enqueued_at' => item.enqueued_at
-        )
-      end
-    end
-
-    def decode_json_items(items)
-      items.each_with_object([]) do |item_json, memo|
-        next unless item_json
-
-        hash = JSON.parse(item_json)
-        id, body, enqueued_at = hash.values_at('id', 'body', 'enqueued_at')
-        memo << Item.new(id: id, body: body, enqueued_at: enqueued_at)
       end
     end
 

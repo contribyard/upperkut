@@ -52,22 +52,6 @@ module Upperkut
       end
     end
 
-    describe '#decode_json_items' do
-      context 'when collection has nil values' do
-        it 'rejects nil and preserve collection' do
-          items_json = [nil, nil, nil, '{"id":"my-job","body":{"id":2,"name":"value"}}']
-          items = decode_json_items(items_json).map(&:body)
-
-          expect(items).to eq(
-            [
-              'id' => 2,
-              'name' => 'value'
-            ]
-          )
-        end
-      end
-    end
-
     describe '#retry_block' do
       before do
         allow(Kernel).to receive(:sleep).and_return(nil)

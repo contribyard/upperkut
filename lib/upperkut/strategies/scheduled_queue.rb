@@ -2,6 +2,7 @@ require 'time'
 require 'upperkut/util'
 require 'upperkut/redis_pool'
 require 'upperkut/strategies/base'
+require 'upperkut/serializer'
 
 module Upperkut
   module Strategies
@@ -29,6 +30,7 @@ module Upperkut
       def initialize(worker, options = {})
         @options = options
         @redis_options = @options.fetch(:redis, {})
+        @serializer = @options.fetch(:serializer, Upperkut::Serializer.new)
         @worker = worker
 
         @batch_size = @options.fetch(
@@ -45,7 +47,7 @@ module Upperkut
           items.each do |item|
             schedule_item = ensure_timestamp_attr(item)
             timestamp = schedule_item.body['timestamp']
-            conn.zadd(key, timestamp, encode_json_items(schedule_item))
+            conn.zadd(key, timestamp, @serializer.encode(schedule_item))
           end
         end
 
@@ -64,7 +66,7 @@ module Upperkut
           items = pop_values(conn, args)
         end
 
-        decode_json_items(items)
+        @serializer.decode(items)
       end
 
       def clear
@@ -130,7 +132,7 @@ module Upperkut
 
         item = redis do |conn|
           item = conn.zrangebyscore(key, '-inf', timestamp.to_s, limit: [0, 1]).first
-          decode_json_items([item]).first
+          @serializer.decode([item]).first
         end
 
         return timestamp - item.body['timestamp'].to_f if item

@@ -1,6 +1,7 @@
 require 'upperkut/util'
 require 'upperkut/redis_pool'
 require 'upperkut/strategies/base'
+require 'upperkut/serializer'
 
 module Upperkut
   module Strategies
@@ -74,6 +75,7 @@ module Upperkut
         @options = options
         @priority_key = options.fetch(:priority_key)
         @redis_options = options.fetch(:redis, {})
+        @serializer    = options.fetch(:serializer, Upperkut::Serializer.new)
 
         @max_wait = options.fetch(
           :max_wait,
@@ -112,7 +114,7 @@ module Upperkut
 
             conn.eval(ENQUEUE_ITEM,
                       keys: keys,
-                      argv: [encode_json_items(item)])
+                      argv: [@serializer.encode(item)])
           end
         end
 
@@ -131,7 +133,7 @@ module Upperkut
                     argv: [batch_size])
         end
 
-        decode_json_items(items)
+        @serializer.decode(items)
       end
 
       # Public: Clear all data related to the strategy.

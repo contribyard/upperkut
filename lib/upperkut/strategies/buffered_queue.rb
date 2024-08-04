@@ -1,6 +1,7 @@
 require 'upperkut/util'
 require 'upperkut/redis_pool'
 require 'upperkut/strategies/base'
+require 'upperkut/serializer'
 
 module Upperkut
   module Strategies
@@ -58,6 +59,7 @@ module Upperkut
       def initialize(worker, options = {})
         @options = options
         @redis_options = options.fetch(:redis, {})
+        @serializer = options.fetch(:serializer, Upperkut::Serializer.new)
         @worker = worker
 
         @ack_wait_limit = options.fetch(
@@ -83,7 +85,7 @@ module Upperkut
         return false if items.empty?
 
         redis do |conn|
-          conn.rpush(key, encode_json_items(items))
+          conn.rpush(key, @serializer.encode(items))
         end
 
         true
@@ -98,7 +100,7 @@ module Upperkut
                     argv: [batch_size, Time.now.utc.to_i, Time.now.utc.to_i - @ack_wait_limit])
         end
 
-        decode_json_items(items)
+        @serializer.decode(items)
       end
 
       def clear
@@ -111,7 +113,7 @@ module Upperkut
         redis do |conn|
           conn.eval(ACK_ITEMS,
                     keys: [processing_key],
-                    argv: encode_json_items(items))
+                    argv: @serializer.encode(items))
         end
       end
 
@@ -121,7 +123,7 @@ module Upperkut
         redis do |conn|
           conn.eval(NACK_ITEMS,
                     keys: [key, processing_key],
-                    argv: encode_json_items(items))
+                    argv: @serializer.encode(items))
         end
       end
 
@@ -166,7 +168,7 @@ module Upperkut
       def oldest_item_age(current_latency)
         oldest_processing_item = redis do |conn|
           items = conn.zrange(processing_key, 0, 0)
-          decode_json_items(items).first
+          @serializer.decode(items).first
         end
 
         oldest_processing_age = if oldest_processing_item
@@ -181,7 +183,7 @@ module Upperkut
 
       def latency
         items = redis { |conn| conn.lrange(key, 0, 0) }
-        first_item = decode_json_items(items).first
+        first_item = @serializer.decode(items).first
         return 0 unless first_item
 
         now = Time.now.to_f

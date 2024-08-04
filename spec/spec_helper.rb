@@ -5,8 +5,6 @@ require 'pry'
 require 'upperkut'
 require_relative 'helpers'
 
-# Set default REDIS_URL environment variable
-ENV['REDIS_URL'] = 'redis://localhost'
 
 SimpleCov.start if ENV['COVERAGE'] == 'true'
 
